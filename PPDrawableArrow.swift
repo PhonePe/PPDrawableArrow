@@ -78,16 +78,16 @@ final public class PPDrawableArrow {
                                  duration:TimeInterval = 0.25,
                                  lineColor: UIColor,
                                  lineWidth: CGFloat = 1.0,
-                                 completion:((_ hasFinished: Bool, _ error: String?) -> Void)? = nil) {
+                                 completion:((_ hasFinished: Bool, _ error: String?) -> Void)? = nil) -> CALayer? {
         
         if from == to {
             completion?(false, "from and to points cant be same")
-            return
+            return nil
         }
         
         if PPDrawableArrow.isValidInputs(from: from, to: to, curveDirection: curveDirection) == false {
             completion?(false, "wrong arrow direction for the given points")
-            return
+            return nil
         }
         
         let path = UIBezierPath()
@@ -109,17 +109,21 @@ final public class PPDrawableArrow {
         let secondEndOfArrow = CGPoint(x: to.x - arrowLenght * curveDirection.secondFactor, y: to.y - (tan(curveDirection.secondAngle * (.pi / 180)) * arrowLenght))
         path.addLine(to: secondEndOfArrow)
         
+        let layer = CAShapeLayer()
+        layer.path = path.cgPath
+        layer.strokeColor = UIColor.clear.cgColor
+        layer.lineWidth = lineWidth
+        layer.fillColor = nil
+        layer.lineJoin = kCALineCapSquare
+        inView.layer.addSublayer(layer)
+        
+        CATransaction.begin()
+        // Add the animation to the curve
+        CATransaction.setCompletionBlock {
+            completion?(true, nil)
+        }
+        
         if animated {
-            
-            let layer = CAShapeLayer()
-            layer.path = path.cgPath
-            layer.strokeColor = UIColor.clear.cgColor
-            layer.lineWidth = lineWidth
-            layer.fillColor = nil
-            layer.lineJoin = kCALineCapSquare
-            inView.layer.addSublayer(layer)
-            
-            CATransaction.begin()
             let animate = CABasicAnimation(keyPath: "strokeEnd")
             animate.repeatCount = 1.0
             
@@ -131,21 +135,14 @@ final public class PPDrawableArrow {
             animate.timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseIn)
             
             layer.strokeColor = lineColor.cgColor
-            // Add the animation to the curve
-            CATransaction.setCompletionBlock {
-                completion?(true, nil)
-            }
+            
             
             layer.add(animate, forKey: "drawAnimation")
-            CATransaction.commit()
         }
-        else {
-            let strokeColor = lineColor
-            strokeColor.setStroke()
-            path.lineWidth = lineWidth
-            path.stroke()
-            completion?(true,nil)
-        }
+        
+        CATransaction.commit()
+        
+        return layer
     }
     
     private static func getControlPoint(fromPoint: CGPoint, toPoint: CGPoint, direction: PPCurveDirection) -> CGPoint {
